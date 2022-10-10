@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+  labels:
+    app: demo
+spec:
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+      - name: demo
+        image: mknet3/compose-metrics:alpha3
+        ports:
+        - containerPort: 10000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 10000
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 10000
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: demo
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1 # Default
+    kind: Deployment # Default
+    name: demo
+  pollingInterval: 5 # Default 30
+  cooldownPeriod: 10 # Default 300
+  minReplicaCount: 0 # Default 0
+  maxReplicaCount: 10 # Default 100
+  triggers:
+  - type: metrics-api
+    metadata:
+      targetValue: "10"
+      url: "http://<< POD IP >>:10000/"
+      valueLocation: 'value'
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 30
